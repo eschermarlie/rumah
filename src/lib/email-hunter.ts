@@ -138,12 +138,8 @@ function stripMarkdownFences(text: string): string {
     .trim();
 }
 
-const GEMINI_MODELS = [
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash"
-];
-
 async function callGemini(
+  modelName: string,
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
@@ -151,7 +147,6 @@ async function callGemini(
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  for (const modelName of GEMINI_MODELS) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tools = useSearch ? [{ googleSearch: {} } as any] : [];
@@ -182,7 +177,6 @@ async function callGemini(
 
       if (!text) {
         console.error(`[Gemini] ${modelName} returned empty text`);
-        continue;
       }
 
       console.log(
@@ -191,22 +185,11 @@ async function callGemini(
       return text;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const isRetryable = msg.includes("503") || msg.includes("timeout") || msg.includes("quota");
 
       console.error(`[Gemini] ${modelName} failed: ${msg}`);
 
-      if (isRetryable && modelName !== GEMINI_MODELS[GEMINI_MODELS.length - 1]) {
-        console.log(
-          `[Gemini] ${modelName} is retryable, trying next model...`,
-        );
-        continue;
-      }
-
       throw new Error(`Gemini error (${modelName}): ${msg}`);
     }
-  }
-
-  throw new Error("All Gemini models exhausted");
 }
 
 function cleanLinkedinUrl(url: unknown): string | undefined {
@@ -283,7 +266,7 @@ export class EmailHunter {
       });
       console.log(`[Hunter] Starting research for: ${query}`);
       
-      const researchOutput = await callGemini(this.geminiApiKey, RESEARCH_PROMPT, query, true);
+      const researchOutput = await callGemini("gemini-3-pro-preview", this.geminiApiKey, RESEARCH_PROMPT, query, true);
       const researchData = JSON.parse(stripMarkdownFences(researchOutput));
       
       const extracted = extractResearchPeople(researchData);
@@ -312,7 +295,7 @@ export class EmailHunter {
 
       const patternInput = `Here is the research data for the company "${companyDomain}":\n\n${JSON.stringify(people, null, 2)}\n\nGenerate the most likely email addresses for each person. Remember to use the company domain: ${companyDomain}. If any confirmed emails exist, deduce the company email pattern and apply it to all people. IMPORTANT: Preserve the linkedin_url for each person in every email result.`;
 
-      const patternOutput = await callGemini(
+      const patternOutput = await callGemini("gemini-2.5-flash",
         this.geminiApiKey,
         PATTERN_PROMPT,
         patternInput,
@@ -338,7 +321,7 @@ export class EmailHunter {
 
       const formatInput = `Clean up and format these email candidates. Company domain: ${companyDomain}\n\n${JSON.stringify(patternData.emails || patternData, null, 2)}\n\nReturn only the final cleaned, deduplicated, sorted results. IMPORTANT: Preserve the linkedin_url field for each result.`;
 
-      const formatOutput = await callGemini(
+      const formatOutput = await callGemini("gemini-2.5-flash",
         this.geminiApiKey,
         FORMAT_PROMPT,
         formatInput,
