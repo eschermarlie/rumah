@@ -3,8 +3,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db } from '@/db';
 import { contacts } from '@/db/schema';
-import fs from 'fs/promises';
-import path from 'path';
+import { uploadToGCS } from '@/lib/gcs';
 
 export async function uploadAndExtractAction(formData: FormData) {
   try {
@@ -15,16 +14,9 @@ export async function uploadAndExtractAction(formData: FormData) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Save file locally
+    // Save file to GCS
     const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    const filePath = path.join(uploadDir, fileName);
-    
-    // Ensure directory exists
-    await fs.mkdir(uploadDir, { recursive: true });
-    await fs.writeFile(filePath, buffer);
-    
-    const imagePath = `/uploads/${fileName}`;
+    const imagePath = await uploadToGCS(buffer, fileName, file.type);
 
     // Call Gemini API
     const apiKey = process.env.GEMINI_API_KEY;
