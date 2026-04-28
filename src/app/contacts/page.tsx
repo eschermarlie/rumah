@@ -44,7 +44,7 @@ export default async function ContactsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {contactList.map((contact) => (
+          {contactList.map((contact, index) => (
             <div key={contact.id} className="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden flex flex-col hover:shadow-md transition-shadow">
               {/* Thumbnail Container */}
               <div className="relative aspect-[4/3] bg-gray-100 group">
@@ -54,6 +54,7 @@ export default async function ContactsPage() {
                   fill
                   className="object-cover transition-transform group-hover:scale-105"
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                  priority={index < 4}
                 />
                 <a 
                   href={contact.imagePath} 
