@@ -21,8 +21,8 @@ const CONFIDENCE_STYLES: Record<string, string> = {
 
 const STAGE_STEPS: { stage: string; label: string; model: string }[] = [
   { stage: "research", label: "Researching", model: "Gemini 2.5 Flash" },
-  { stage: "patterns", label: "Generating patterns", model: "Llama 3.3 70B" },
-  { stage: "formatting", label: "Formatting results", model: "Llama 4 Scout" },
+  { stage: "patterns", label: "Generating patterns", model: "Gemini 2.5 Flash" },
+  { stage: "formatting", label: "Formatting results", model: "Gemini 2.5 Flash" },
   { stage: "done", label: "Done", model: "" },
 ];
 
@@ -336,8 +336,7 @@ export default function HunterPage() {
             Email Hunter
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            3-stage AI pipeline: Gemini 2.5 Flash (research) → Llama 3.3 70B
-            (pattern inference) → Llama 4 Scout (formatting)
+            3-stage AI pipeline: Gemini 2.5 Flash (research, patterns, and formatting)
           </p>
         </div>
 

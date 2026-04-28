@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export interface HunterResult {
@@ -35,16 +34,6 @@ interface ResearchPerson {
   confirmed_email?: string;
   linkedin_url?: string;
   source: string;
-}
-
-function createGroq(): OpenAI {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY environment variable is not set");
-  }
-  return new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1",
-  });
 }
 
 const RESEARCH_PROMPT = `You are an expert corporate research assistant. Your SOLE job is to gather raw intelligence about companies and their leadership.
@@ -150,45 +139,43 @@ function stripMarkdownFences(text: string): string {
 }
 
 const GEMINI_MODELS = [
-  "gemini-3.1-flash-lite-preview"
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash"
 ];
 
 async function callGemini(
   apiKey: string,
-  query: string,
-): Promise<Record<string, unknown>> {
+  systemPrompt: string,
+  userPrompt: string,
+  useSearch = false,
+): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
 
   for (const modelName of GEMINI_MODELS) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tools = [{ googleSearch: {} } as any];
+      const tools = useSearch ? [{ googleSearch: {} } as any] : [];
 
-      let model;
-      try {
-        model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: RESEARCH_PROMPT,
-          tools,
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 4096,
-          },
-        });
-      } catch (modelErr) {
-        console.error(`[Gemini] Failed to initialize model ${modelName}:`, modelErr);
-        continue;
-      }
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemPrompt,
+        tools,
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
+      });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error("Gemini API timeout after 30s")),
-          30_000,
+          () => reject(new Error(`Gemini API timeout after 60s (${modelName})`)),
+          60_000,
         ),
       );
 
+      console.log(`[Gemini] Calling ${modelName}...`);
       const result = await Promise.race([
-        model?.generateContent(query),
+        model.generateContent(userPrompt),
         timeoutPromise,
       ]);
       const text = result?.response.text() || "";
@@ -199,72 +186,27 @@ async function callGemini(
       }
 
       console.log(
-        `[Gemini] ${modelName} response received (${text?.length} chars)`,
+        `[Gemini] ${modelName} response received (${text.length} chars)`,
       );
-      return JSON.parse(stripMarkdownFences(text));
+      return text;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const isRetryable = msg.includes("503") || msg.includes("timeout");
+      const isRetryable = msg.includes("503") || msg.includes("timeout") || msg.includes("quota");
 
       console.error(`[Gemini] ${modelName} failed: ${msg}`);
 
-      if (isRetryable) {
+      if (isRetryable && modelName !== GEMINI_MODELS[GEMINI_MODELS.length - 1]) {
         console.log(
-          `[Gemini] ${modelName} is retryable (503/timeout), trying next model...`,
+          `[Gemini] ${modelName} is retryable, trying next model...`,
         );
         continue;
       }
 
-      console.error(
-        `[Gemini] ${modelName} failed with non-retryable error (429/404/etc), aborting`,
-      );
       throw new Error(`Gemini error (${modelName}): ${msg}`);
     }
   }
 
-  throw new Error("All Gemini models exhausted without a successful response");
-}
-
-async function callGroq(
-  groq: OpenAI,
-  model: string,
-  systemPrompt: string,
-  userPrompt: string,
-  timeoutMs = 60_000,
-): Promise<string> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    console.log(`[Groq] Calling ${model}...`);
-    const completion = await groq.chat.completions.create(
-      {
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.1,
-        max_tokens: 4096,
-      },
-      { signal: controller.signal as AbortSignal },
-    );
-
-    const content = completion.choices[0].message.content || "";
-    console.log(`[Groq] ${model} response received (${content.length} chars)`);
-    return content;
-  } catch (err) {
-    if ((err as Error).name === "AbortError") {
-      console.error(`[Groq] ${model} timed out after ${timeoutMs / 1000}s`);
-      throw new Error(
-        `Groq API timeout after ${timeoutMs / 1000}s — ${model} may be overloaded, try again`,
-      );
-    }
-    console.error(`[Groq] ${model} error:`, err);
-    throw err;
-  } finally {
-    clearTimeout(timer);
-  }
+  throw new Error("All Gemini models exhausted");
 }
 
 function cleanLinkedinUrl(url: unknown): string | undefined {
@@ -317,7 +259,6 @@ function mapToHunterResult(r: Record<string, unknown>): HunterResult {
 
 export class EmailHunter {
   private geminiApiKey: string;
-  private groq: OpenAI;
 
   constructor() {
     const geminiKey = process.env.GEMINI_API_KEY;
@@ -325,7 +266,6 @@ export class EmailHunter {
       throw new Error("GEMINI_API_KEY environment variable is not set");
     }
     this.geminiApiKey = geminiKey;
-    this.groq = createGroq();
   }
 
   async find(
@@ -342,8 +282,10 @@ export class EmailHunter {
         message: "Researching company and leadership with Gemini 2.5 Flash...",
       });
       console.log(`[Hunter] Starting research for: ${query}`);
-      console.log(this.geminiApiKey);
-      const researchData = await callGemini(this.geminiApiKey, query);
+      
+      const researchOutput = await callGemini(this.geminiApiKey, RESEARCH_PROMPT, query, true);
+      const researchData = JSON.parse(stripMarkdownFences(researchOutput));
+      
       const extracted = extractResearchPeople(researchData);
       people = extracted.people;
       companyDomain = extracted.companyDomain;
@@ -365,14 +307,13 @@ export class EmailHunter {
     try {
       onStage?.({
         stage: "patterns",
-        message: `Generating email patterns for ${people.length} people with Llama 3.3 70B...`,
+        message: `Generating email patterns for ${people.length} people with Gemini 2.5 Flash...`,
       });
 
       const patternInput = `Here is the research data for the company "${companyDomain}":\n\n${JSON.stringify(people, null, 2)}\n\nGenerate the most likely email addresses for each person. Remember to use the company domain: ${companyDomain}. If any confirmed emails exist, deduce the company email pattern and apply it to all people. IMPORTANT: Preserve the linkedin_url for each person in every email result.`;
 
-      const patternOutput = await callGroq(
-        this.groq,
-        "llama-3.3-70b-versatile",
+      const patternOutput = await callGemini(
+        this.geminiApiKey,
         PATTERN_PROMPT,
         patternInput,
       );
@@ -392,14 +333,13 @@ export class EmailHunter {
     try {
       onStage?.({
         stage: "formatting",
-        message: "Deduplicating and formatting results with Llama 4 Scout...",
+        message: "Deduplicating and formatting results with Gemini 2.5 Flash...",
       });
 
       const formatInput = `Clean up and format these email candidates. Company domain: ${companyDomain}\n\n${JSON.stringify(patternData.emails || patternData, null, 2)}\n\nReturn only the final cleaned, deduplicated, sorted results. IMPORTANT: Preserve the linkedin_url field for each result.`;
 
-      const formatOutput = await callGroq(
-        this.groq,
-        "meta-llama/llama-4-scout-17b-16e-instruct",
+      const formatOutput = await callGemini(
+        this.geminiApiKey,
         FORMAT_PROMPT,
         formatInput,
       );
