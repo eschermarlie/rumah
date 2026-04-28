@@ -51,3 +51,41 @@ export async function uploadToGCS(buffer: Buffer, fileName: string, mimeType: st
     throw error;
   }
 }
+
+export async function deleteFromGCS(url: string): Promise<void> {
+  const bucketName = process.env.GCS_BUCKET_NAME;
+  
+  if (!bucketName) {
+    throw new Error('GCS_BUCKET_NAME is not configured');
+  }
+
+  try {
+    // Extract the path from the URL
+    // Expected URL format: https://storage.googleapis.com/[bucket-name]/uploads/[filename]
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/');
+    // pathname will be /[bucket-name]/uploads/[filename]
+    // We want the part after the bucket name
+    const filePath = pathParts.slice(2).join('/');
+
+    if (!filePath) {
+      console.warn(`[Cloud Storage] Could not extract file path from URL: ${url}`);
+      return;
+    }
+
+    const storage = getStorage();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(filePath);
+
+    await file.delete();
+    console.log(`[Cloud Storage] Deleted file: ${filePath}`);
+  } catch (error: any) {
+    // If the file doesn't exist, we can ignore the error
+    if (error.code === 404) {
+      console.warn(`[Cloud Storage] File not found for deletion: ${url}`);
+      return;
+    }
+    console.error('GCS Delete Error Details:', error);
+    throw error;
+  }
+}
