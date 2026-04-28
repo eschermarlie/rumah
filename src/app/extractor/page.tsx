@@ -3,6 +3,24 @@
 import { useState } from 'react';
 import { uploadAndExtractAction, listModels } from './actions';
 
+const formatWhatsAppLink = (phoneNumber: string) => {
+  // Remove all non-digit characters
+  const cleanNumber = phoneNumber.replace(/\D/g, '');
+  
+  // Indonesian formatting logic:
+  // 1. If starts with 0, replace with 62 (e.g. 0812 -> 62812)
+  // 2. If starts with 62, keep it (e.g. 62812 -> 62812)
+  // 3. Otherwise, prepend 62 (assuming local number without leading 0)
+  let formatted = cleanNumber;
+  if (cleanNumber.startsWith('0')) {
+    formatted = '62' + cleanNumber.slice(1);
+  } else if (!cleanNumber.startsWith('62')) {
+    formatted = '62' + cleanNumber;
+  }
+  
+  return `https://wa.me/${formatted}`;
+};
+
 export default function Extractor() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -119,7 +137,7 @@ export default function Extractor() {
 
               {result.phoneNumber && (
                 <a
-                  href={`https://wa.me/+62${result.phoneNumber.replace(/^0/, '')}`}
+                  href={formatWhatsAppLink(result.phoneNumber)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-[#25D366] hover:bg-[#128C7E] transition-all"
