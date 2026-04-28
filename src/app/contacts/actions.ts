@@ -2,17 +2,22 @@
 
 import { db } from '@/db';
 import { contacts } from '@/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { deleteFromGCS } from '@/lib/gcs';
 import { revalidatePath } from 'next/cache';
 
 export async function getContacts() {
   try {
+    // Test koneksi murni
+    const test = await db.execute(sql`SELECT 1`);
+    console.log("Connection test success:", test);
+    
     const allContacts = await db.select().from(contacts).orderBy(desc(contacts.createdAt));
     return { success: true, data: allContacts };
   } catch (error: any) {
-    console.error('Failed to fetch contacts:', error);
-    return { success: false, error: error.message || 'Failed to fetch contacts' };
+    // Log error lengkap ke Cloud Logging
+    console.error('DATABASE_DEBUG:', error.message, error.stack);
+    return { success: false, error: error.message };
   }
 }
 

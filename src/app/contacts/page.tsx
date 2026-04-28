@@ -3,6 +3,8 @@ import { ExternalLink, MessageCircle, Phone, Calendar } from 'lucide-react';
 import Image from 'next/image';
 import { DeleteButton } from './DeleteButton';
 
+export const dynamic = 'force-dynamic';
+
 const formatWhatsAppLink = (phoneNumber: string) => {
   const cleanNumber = phoneNumber.replace(/\D/g, '');
   let formatted = cleanNumber;
