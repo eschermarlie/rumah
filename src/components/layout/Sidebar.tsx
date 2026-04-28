@@ -16,6 +16,7 @@ import { useState } from 'react';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'AI Contact Extractor', href: '/extractor', icon: Contact },
+  { name: 'Contacts', href: '/contacts', icon: Contact },
 ];
 
 const mailHuntNavigation = [
