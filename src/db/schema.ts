@@ -6,6 +6,7 @@ export const contacts = pgTable('contacts', {
   phoneNumber: text('phone_number'),
   location: text('location'),
   note: text('note'),
+  status: text('status').default('completed').notNull(),
   imagePath: text('image_path').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

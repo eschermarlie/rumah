@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { uploadAndExtractAction } from "./actions";
 import { Camera, MapPin, Check, AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface ExtractionJob {
   id: string;
@@ -25,6 +26,7 @@ const formatWhatsAppLink = (phoneNumber: string) => {
 };
 
 export default function Extractor() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<ExtractionJob[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -129,6 +131,7 @@ export default function Extractor() {
     );
 
     setIsProcessing(false);
+    router.push("/contacts");
   };
 
   return (
