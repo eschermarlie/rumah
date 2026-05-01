@@ -3,6 +3,8 @@ import { MessageCircle, Phone, Calendar } from 'lucide-react';
 import { DeleteButton } from './DeleteButton';
 import { ImageModal } from './ImageModal';
 import { DownloadButton } from './DownloadButton';
+import { LocationField } from './LocationField';
+import { NoteField } from './NoteField';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +74,8 @@ export default async function ContactsPage() {
                         {contact.phoneNumber || 'No phone number'}
                       </span>
                     </div>
+                    <LocationField id={contact.id} initialLocation={contact.location} />
+                    <NoteField id={contact.id} initialNote={contact.note} />
                     <div className="flex items-center text-gray-400 mt-0.5">
                       <Calendar className="h-3 w-3 mr-1.5 text-gray-400 flex-shrink-0" />
                       <span className="text-[10px] truncate">

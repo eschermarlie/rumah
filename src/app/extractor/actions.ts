@@ -4,16 +4,36 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db } from '@/db';
 import { contacts } from '@/db/schema';
 import { uploadToGCS } from '@/lib/gcs';
+import exifr from 'exifr';
 
 export async function uploadAndExtractAction(formData: FormData) {
   try {
     const file = formData.get('image') as File;
+    const clientLat = formData.get('lat') as string | null;
+    const clientLng = formData.get('lng') as string | null;
+
     if (!file) {
       return { success: false, error: 'No file uploaded' };
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
+    // Extract GPS Metadata
+    let location = null;
+    try {
+      const gps = await exifr.gps(buffer);
+      if (gps && gps.latitude && gps.longitude) {
+        location = `${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}`;
+      }
+    } catch (exifError) {
+      console.warn('Failed to extract EXIF data:', exifError);
+    }
+
+    // Fallback to client location if EXIF GPS is missing
+    if (!location && clientLat && clientLng) {
+      location = `${parseFloat(clientLat).toFixed(6)}, ${parseFloat(clientLng).toFixed(6)}`;
+    }
+
     // Save file to GCS
     const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
     const imagePath = await uploadToGCS(buffer, fileName, file.type);
@@ -63,6 +83,7 @@ export async function uploadAndExtractAction(formData: FormData) {
     const [insertedContact] = await db.insert(contacts).values({
       name: extractedData.name || null,
       phoneNumber: extractedData.phoneNumber || null,
+      location: location,
       imagePath,
     }).returning();
 

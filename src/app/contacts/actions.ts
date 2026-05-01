@@ -45,3 +45,17 @@ export async function deleteContact(id: number) {
     return { success: false, error: error.message || 'Failed to delete contact' };
   }
 }
+
+export async function updateContact(id: number, data: { name?: string; phoneNumber?: string; location?: string | null; note?: string | null }) {
+  try {
+    await db.update(contacts)
+      .set(data)
+      .where(eq(contacts.id, id));
+
+    revalidatePath('/contacts');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to update contact:', error);
+    return { success: false, error: error.message || 'Failed to update contact' };
+  }
+}
