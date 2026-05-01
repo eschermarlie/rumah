@@ -1,5 +1,5 @@
 import { getContacts } from './actions';
-import { MessageCircle, Phone, Calendar, RefreshCcw, AlertCircle } from 'lucide-react';
+import { MessageCircle, Phone, Calendar, RefreshCcw, AlertCircle, MapPin } from 'lucide-react';
 import { DeleteButton } from './DeleteButton';
 import { ImageModal } from './ImageModal';
 import { DownloadButton } from './DownloadButton';
@@ -113,6 +113,17 @@ export default async function ContactsPage() {
                         </div>
                       ) : (
                         <>
+                          {contact.location && (
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.location)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center px-2 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded hover:bg-indigo-100 transition-colors gap-1.5 border border-indigo-100"
+                            >
+                              <MapPin className="h-3 w-3" />
+                              Show Location
+                            </a>
+                          )}
                           <DownloadButton 
                             url={contact.imagePath} 
                             filename={`contact-${contact.name?.replace(/\s+/g, '-').toLowerCase() || contact.id}.jpg`} 
