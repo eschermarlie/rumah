@@ -1,7 +1,8 @@
 import { getContacts } from './actions';
-import { ExternalLink, MessageCircle, Phone, Calendar } from 'lucide-react';
-import Image from 'next/image';
+import { MessageCircle, Phone, Calendar } from 'lucide-react';
 import { DeleteButton } from './DeleteButton';
+import { ImageModal } from './ImageModal';
+import { DownloadButton } from './DownloadButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,73 +44,68 @@ export default async function ContactsPage() {
           No contacts found. Use the AI Contact Extractor to add some.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {contactList.map((contact, index) => (
-            <div key={contact.id} className="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-              {/* Thumbnail Container */}
-              <div className="relative aspect-[4/3] bg-gray-100 group">
-                <Image
-                  src={contact.imagePath}
-                  alt={contact.name || 'Contact Image'}
-                  fill
-                  className="object-cover transition-transform group-hover:scale-105"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                  priority={index < 4}
-                />
-                <a 
-                  href={contact.imagePath} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm rounded-full text-gray-700 hover:text-indigo-600 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="View full image"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-                <div className="absolute top-2 left-2">
-                  <DeleteButton id={contact.id} contactName={contact.name || ''} />
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {contactList.map((contact) => (
+            <div key={contact.id} className="bg-white shadow-sm border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow relative group">
+              <div className="absolute top-2 right-2 z-10">
+                <DeleteButton id={contact.id} contactName={contact.name || ''} />
               </div>
 
-              {/* Content */}
-              <div className="p-4 flex-grow flex flex-col">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
-                    {contact.name || 'Unknown Name'}
-                  </h3>
-                  <div className="flex items-center text-gray-600 mt-1">
-                    <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                    <span className="text-sm font-medium">
-                      {contact.phoneNumber || 'No phone number'}
-                    </span>
-                  </div>
-                  <div className="flex items-center text-gray-500 mt-1">
-                    <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                    <span className="text-xs">
-                      {new Date(contact.createdAt).toLocaleDateString()} {new Date(contact.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+              <div className="flex gap-4">
+                {/* Image Container */}
+                <div className="w-24 h-24 flex-shrink-0 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden relative">
+                  <ImageModal 
+                    src={contact.imagePath} 
+                    alt={contact.name || 'Contact Image'} 
+                  />
                 </div>
 
-                <div className="mt-auto">
-                  {contact.phoneNumber ? (
-                    <a
-                      href={formatWhatsAppLink(contact.phoneNumber)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full inline-flex items-center justify-center px-4 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#25D366] hover:bg-[#128C7E] transition-colors gap-2"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      Chat on WhatsApp
-                    </a>
-                  ) : (
-                    <button
-                      disabled
-                      className="w-full inline-flex items-center justify-center px-4 py-2.5 border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-400 bg-gray-50 cursor-not-allowed gap-2"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      No WhatsApp
-                    </button>
-                  )}
+                {/* Content */}
+                <div className="flex-grow min-w-0 flex flex-col">
+                  <div className="mb-2">
+                    <h3 className="text-sm font-bold text-gray-900 truncate">
+                      {contact.name || 'Unknown Name'}
+                    </h3>
+                    <div className="flex items-center text-gray-500 mt-0.5">
+                      <Phone className="h-3 w-3 mr-1.5 text-gray-400 flex-shrink-0" />
+                      <span className="text-xs font-medium truncate">
+                        {contact.phoneNumber || 'No phone number'}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-400 mt-0.5">
+                      <Calendar className="h-3 w-3 mr-1.5 text-gray-400 flex-shrink-0" />
+                      <span className="text-[10px] truncate">
+                        {new Date(contact.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex flex-col gap-1">
+                    <DownloadButton 
+                      url={contact.imagePath} 
+                      filename={`contact-${contact.name?.replace(/\s+/g, '-').toLowerCase() || contact.id}.jpg`} 
+                    />
+                    
+                    {contact.phoneNumber ? (
+                      <a
+                        href={formatWhatsAppLink(contact.phoneNumber)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center px-2 py-1 bg-[#25D366] text-white text-[10px] font-bold rounded hover:bg-[#128C7E] transition-colors gap-1.5"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        WhatsApp
+                      </a>
+                    ) : (
+                      <button
+                        disabled
+                        className="inline-flex items-center justify-center px-2 py-1 bg-gray-100 text-gray-400 text-[10px] font-bold rounded cursor-not-allowed gap-1.5"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        No WhatsApp
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
